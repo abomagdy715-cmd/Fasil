@@ -224,8 +224,8 @@ select option{background:var(--bg3)}
   <div class="lbl">من يدفع لمين؟</div>
   <div id="settlements"></div>
   <div class="divider"></div>
-  <div class="lbl">تسجيل دفعة</div>
-  <div class="card">
+  <div class="lbl" id="pay-section-lbl" style="display:none">تسجيل دفعة</div>
+  <div class="card" id="pay-section-card" style="display:none">
     <div class="fg">
       <div class="fl fg-full">
         <label>⟳ من دفع لمين؟</label>
@@ -337,6 +337,9 @@ function applyRole() {
   }
   // إضافة أشخاص — أدمن بس
   document.getElementById("add-person-row").style.display = isAdmin ? "" : "none";
+  // تسجيل الدفعات — أدمن بس
+  document.getElementById("pay-section-lbl").style.display = isAdmin ? "" : "none";
+  document.getElementById("pay-section-card").style.display = isAdmin ? "" : "none";
 }
 
 // ═══ TABS ═══
