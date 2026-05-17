@@ -459,11 +459,18 @@ function checkPass() {
 window.checkPass = checkPass;
 
 function applyRole() {
-  // Show/hide delete buttons based on role
-  document.querySelectorAll(".delbtn, .pi-del, .chip button, .rm").forEach(btn => {
+  // حذف الفواتير والدفعات والأشخاص — أدمن بس
+  document.querySelectorAll(".delbtn, .pi-del, .rm").forEach(btn => {
     btn.style.display = isAdmin ? "" : "none";
   });
-  // Show role badge in header
+  // حذف الأشخاص — أدمن بس
+  document.querySelectorAll(".chip button").forEach(btn => {
+    btn.style.display = isAdmin ? "" : "none";
+  });
+  // إضافة أشخاص — أدمن بس
+  const addPersonRow = document.querySelector("#pg-people .row");
+  if(addPersonRow) addPersonRow.style.display = isAdmin ? "" : "none";
+  // role badge
   const badge = document.getElementById("role-badge");
   if(badge) {
     badge.textContent = isAdmin ? "👑 أدمن" : "👤 عضو";
