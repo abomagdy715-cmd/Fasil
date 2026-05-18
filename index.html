@@ -211,9 +211,9 @@ select option{background:var(--bg3)}
       <div class="auth-inp-wrap"><label>🔐 كلمة السر</label><input class="auth-inp" type="password" id="auth-pass" placeholder="••••••"/></div>
       <div class="auth-err" id="auth-err"></div>
       <button class="auth-btn" id="auth-btn">دخول كأدمن</button>
-      <div style="text-align:center;margin-top:10px">
-        <span style="font-size:12px;color:var(--tx3)">أول مرة؟ </span>
-        <button id="show-register-btn" style="background:none;border:none;color:var(--gold);font-size:12px;cursor:pointer;font-family:Tajawal,sans-serif;text-decoration:underline">أنشئ حساب أدمن</button>
+      <div style="text-align:center;margin-top:10px;display:flex;justify-content:center;gap:16px;flex-wrap:wrap">
+        <button id="show-register-btn" style="background:none;border:none;color:var(--gold);font-size:12px;cursor:pointer;font-family:Tajawal,sans-serif;text-decoration:underline">أنشئ حساب جديد</button>
+        <button id="forgot-pass-btn" style="background:none;border:none;color:var(--tx2);font-size:12px;cursor:pointer;font-family:Tajawal,sans-serif;text-decoration:underline">نسيت كلمة السر؟</button>
       </div>
     </div>
 
@@ -388,7 +388,7 @@ select option{background:var(--bg3)}
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { getFirestore, collection, doc, setDoc, getDoc, getDocs, onSnapshot, deleteDoc, query, where } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -463,6 +463,30 @@ document.getElementById("auth-btn").onclick = async () => {
       "auth/invalid-email": "إيميل غلط"
     };
     showErr(errEl, msgs[e.code] || "حصل خطأ، حاول تاني");
+  }
+};
+
+// نسيت كلمة السر
+document.getElementById("forgot-pass-btn").onclick = async () => {
+  const email = document.getElementById("auth-email").value.trim();
+  const errEl = document.getElementById("auth-err");
+  errEl.style.display = "none";
+  if (!email) {
+    showErr(errEl, "اكتب الإيميل الأول عشان نبعتلك رابط إعادة التعيين");
+    return;
+  }
+  try {
+    await sendPasswordResetEmail(auth, email);
+    errEl.style.background = "var(--greenbg)";
+    errEl.style.color = "var(--greentx)";
+    showErr(errEl, "✓ اتبعت رابط إعادة التعيين على إيميلك");
+    setTimeout(() => {
+      errEl.style.display = "none";
+      errEl.style.background = "";
+      errEl.style.color = "";
+    }, 4000);
+  } catch(e) {
+    showErr(errEl, "تأكد من الإيميل وحاول تاني");
   }
 };
 
@@ -556,23 +580,33 @@ function loadGroups() {
       el.innerHTML = '<div class="empty"><div class="empty-icon">👥</div>مفيش مجموعات بعد<br>أنشئ مجموعة أو انضم لواحدة</div>';
       return;
     }
-    el.innerHTML = all.map(g => {
-      const isMine = g.adminUid === currentUser.uid;
-      const badge = isMine
-        ? '<span class="group-badge badge-admin">👑 أدمن</span>'
-        : '<span class="group-badge badge-member">👤 عضو</span>';
-      return '<div class="group-card" data-id="' + g.id + '">' +
-        badge +
-        '<div class="group-name">' + g.name + '</div>' +
-        '<div class="group-meta">' + (g.memberCount || 0) + ' أشخاص · ' + (g.expenseCount || 0) + ' مصروف</div>' +
-        '</div>';
-    }).join("");
-    el.querySelectorAll(".group-card").forEach(card => {
-      card.onclick = () => {
-        const g = all.find(x => x.id === card.dataset.id);
-        openGroup(g);
-      };
-    });
+    // جيب العدد الحقيقي من Firestore
+    const renderWithCounts = async () => {
+      const cards = await Promise.all(all.map(async g => {
+        const isMine = g.adminUid === currentUser.uid;
+        const badge = isMine
+          ? '<span class="group-badge badge-admin">👑 أدمن</span>'
+          : '<span class="group-badge badge-member">👤 عضو</span>';
+        const [pSnap, eSnap] = await Promise.all([
+          getDocs(collection(db, "groups/" + g.id + "/people")),
+          getDocs(collection(db, "groups/" + g.id + "/expenses"))
+        ]);
+        return '<div class="group-card" data-id="' + g.id + '">' +
+          badge +
+          '<div class="group-name">' + g.name + '</div>' +
+          '<div class="group-meta">' + pSnap.size + ' أشخاص · ' + eSnap.size + ' مصروف</div>' +
+          '</div>';
+      }));
+      el.innerHTML = cards.join("");
+      el.querySelectorAll(".group-card").forEach(card => {
+        card.onclick = () => {
+          const g = all.find(x => x.id === card.dataset.id);
+          openGroup(g);
+        };
+      });
+    };
+    renderWithCounts();
+
   };
 
   onSnapshot(myGroupsQ, snap => {
