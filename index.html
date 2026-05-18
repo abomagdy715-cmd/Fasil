@@ -189,6 +189,13 @@ select option{background:var(--bg3)}
 .info{background:var(--gold4);border-radius:var(--rs);padding:11px 13px;font-size:12px;color:var(--ambertx);margin-top:.75rem;border:1px solid rgba(212,168,67,.15);line-height:1.6}
 .divider{height:1px;background:var(--bd);margin:1rem 0}
 .loading{text-align:center;padding:3rem;color:var(--tx3);font-size:14px}
+.gc-top{display:flex;align-items:center;gap:6px;margin-bottom:3px}
+.gc-summary{margin-top:10px;padding-top:10px;border-top:1px solid var(--bd);display:flex;flex-direction:column;gap:5px}
+.gc-row{display:flex;justify-content:space-between;align-items:center;font-size:12px}
+.gc-lbl{color:var(--tx2)}
+.gc-val{font-weight:600;color:var(--tx);font-size:12px;text-align:left;max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gc-debt{color:var(--redtx)}
+.gc-settled{font-size:12px;color:var(--greentx);font-weight:600}
 </style>
 </head>
 <body>
@@ -253,7 +260,7 @@ select option{background:var(--bg3)}
   <div class="dash-body">
     <div class="lbl">مجموعاتي</div>
     <button class="new-group-btn" id="new-group-btn">+ إنشاء مجموعة جديدة</button>
-    <button class="join-group-btn" id="join-group-btn">🔗 الانضمام لمجموعة بكلمة السر</button>
+
     <div id="groups-list"><div class="loading">جاري التحميل...</div></div>
   </div>
 </div>
@@ -276,18 +283,7 @@ select option{background:var(--bg3)}
   </div>
 </div>
 
-<!-- JOIN GROUP MODAL -->
-<div class="modal-overlay" id="join-group-modal">
-  <div class="modal">
-    <div class="modal-title">🔗 الانضمام لمجموعة</div>
-    <div class="modal-form">
-      <div class="modal-inp-wrap"><label>كلمة سر المجموعة</label><input class="modal-inp" type="text" id="jg-pass" placeholder="اطلبها من صاحب المجموعة"/></div>
-      <div class="modal-err" id="jg-err"></div>
-      <button class="modal-btn" id="jg-join-btn">انضمام</button>
-      <button class="modal-btn-cancel" id="jg-cancel-btn">إلغاء</button>
-    </div>
-  </div>
-</div>
+
 
 <!-- GROUP APP SCREEN -->
 <div id="group-screen" class="screen">
@@ -580,23 +576,74 @@ function loadGroups() {
       el.innerHTML = '<div class="empty"><div class="empty-icon">👥</div>مفيش مجموعات بعد<br>أنشئ مجموعة أو انضم لواحدة</div>';
       return;
     }
-    // جيب العدد الحقيقي من Firestore
     const renderWithCounts = async () => {
       const cards = await Promise.all(all.map(async g => {
         const isMine = g.adminUid === currentUser.uid;
         const badge = isMine
           ? '<span class="group-badge badge-admin">👑 أدمن</span>'
           : '<span class="group-badge badge-member">👤 عضو</span>';
-        const [pSnap, eSnap] = await Promise.all([
+
+        const [pSnap, eSnap, paySnap] = await Promise.all([
           getDocs(collection(db, "groups/" + g.id + "/people")),
-          getDocs(collection(db, "groups/" + g.id + "/expenses"))
+          getDocs(collection(db, "groups/" + g.id + "/expenses")),
+          getDocs(collection(db, "groups/" + g.id + "/payments"))
         ]);
+
+        const people = pSnap.docs.map(d => d.data().name);
+        const expenses = eSnap.docs.map(d => d.data());
+        const payments = paySnap.docs.map(d => d.data());
+
+        // إجمالي المصاريف
+        const total = expenses.reduce((s,e) => s + (e.amount||0), 0);
+
+        // آخر مصروف
+        const lastExp = expenses.sort((a,b) => (b.ts||0)-(a.ts||0))[0];
+
+        // حساب الأرصدة
+        const bal = {};
+        people.forEach(p => bal[p] = 0);
+        expenses.forEach(e => {
+          const deds = e.deductions || [];
+          const totalDed = deds.reduce((s,d) => s + d.amount, 0);
+          const shared = (e.amount||0) - totalDed;
+          if (e.payer) bal[e.payer] = (bal[e.payer]||0) + (e.amount||0);
+          (e.split||[]).forEach(p => { bal[p] = (bal[p]||0) - shared / (e.split.length||1); });
+          deds.forEach(d => {
+            if (d.onPeople && d.onPeople.length) {
+              const sh = d.amount / d.onPeople.length;
+              d.onPeople.forEach(p => { bal[p] = (bal[p]||0) - sh; });
+            }
+          });
+        });
+        payments.forEach(p => {
+          if(p.from) bal[p.from] = (bal[p.from]||0) + (p.amount||0);
+          if(p.to)   bal[p.to]   = (bal[p.to]||0)   - (p.amount||0);
+        });
+
+        // مين عليه فلوس
+        const debtors = Object.entries(bal).filter(([,b]) => b < -0.01).map(([n,b]) => n + ': ' + Math.abs(b).toFixed(0) + ' ر').join(' · ');
+        const allSettled = Object.values(bal).every(b => Math.abs(b) < 0.01);
+
+        let summaryHtml = '';
+        if (total > 0) {
+          summaryHtml += '<div class="gc-summary">';
+          summaryHtml += '<div class="gc-row"><span class="gc-lbl">💰 الإجمالي</span><span class="gc-val">' + total.toFixed(2) + ' ر</span></div>';
+          if (lastExp) summaryHtml += '<div class="gc-row"><span class="gc-lbl">📋 آخر مصروف</span><span class="gc-val">' + lastExp.name + '</span></div>';
+          if (allSettled && people.length > 0) {
+            summaryHtml += '<div class="gc-settled">✅ الحسابات متساوية</div>';
+          } else if (debtors) {
+            summaryHtml += '<div class="gc-row"><span class="gc-lbl">🔴 عليهم</span><span class="gc-val gc-debt">' + debtors + '</span></div>';
+          }
+          summaryHtml += '</div>';
+        }
+
         return '<div class="group-card" data-id="' + g.id + '">' +
-          badge +
-          '<div class="group-name">' + g.name + '</div>' +
+          '<div class="gc-top">' + badge + '<div class="group-name">' + g.name + '</div></div>' +
           '<div class="group-meta">' + pSnap.size + ' أشخاص · ' + eSnap.size + ' مصروف</div>' +
+          summaryHtml +
           '</div>';
       }));
+
       el.innerHTML = cards.join("");
       el.querySelectorAll(".group-card").forEach(card => {
         card.onclick = () => {
@@ -647,31 +694,7 @@ document.getElementById("ng-create-btn").onclick = async () => {
   document.getElementById("new-group-modal").classList.remove("on");
 };
 
-// ═══ JOIN GROUP ═══
-document.getElementById("join-group-btn").onclick = () => {
-  document.getElementById("join-group-modal").classList.add("on");
-};
-document.getElementById("jg-cancel-btn").onclick = () => {
-  document.getElementById("join-group-modal").classList.remove("on");
-};
-document.getElementById("jg-join-btn").onclick = async () => {
-  const pass = document.getElementById("jg-pass").value.trim();
-  const errEl = document.getElementById("jg-err");
-  errEl.style.display = "none";
-  if (!pass) { showErr(errEl, "اكتب كلمة السر"); return; }
-  const q = query(collection(db, "groups"), where("memberPass", "==", pass));
-  const snap = await getDocs(q);
-  if (snap.empty) { showErr(errEl, "كلمة السر دي مش موجودة"); return; }
-  const g = snap.docs[0];
-  const data = g.data();
-  if (data.members && data.members.includes(currentUser.uid)) {
-    showErr(errEl, "انت أصلاً في المجموعة دي"); return;
-  }
-  const members = [...(data.members || []), currentUser.uid];
-  await setDoc(doc(db, "groups", g.id), {...data, members}, {merge: true});
-  document.getElementById("jg-pass").value = "";
-  document.getElementById("join-group-modal").classList.remove("on");
-};
+
 
 // ═══ OPEN GROUP AS MEMBER ═══
 function openGroupAsMember(group, memberName) {
