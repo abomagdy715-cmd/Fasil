@@ -497,6 +497,13 @@ document.getElementById("member-btn").onclick = async () => {
   const snap = await getDocs(q);
   if (snap.empty) { showErr(errEl, "كلمة السر دي مش موجودة"); return; }
   const groupData = {...snap.docs[0].data(), id: snap.docs[0].id};
+  // تحقق إن الاسم موجود في المجموعة
+  const peopleSnap = await getDocs(collection(db, "groups/" + groupData.id + "/people"));
+  const peopleNames = peopleSnap.docs.map(d => d.data().name);
+  if (!peopleNames.includes(name)) {
+    showErr(errEl, "الاسم ده مش موجود في المجموعة — اطلب من الأدمن يضيفك");
+    return;
+  }
   // خزّن بيانات العضو في sessionStorage
   sessionStorage.setItem("fasil_member", JSON.stringify({ name, groupId: groupData.id }));
   // افتح المجموعة مباشرة كعضو
