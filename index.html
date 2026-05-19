@@ -217,6 +217,30 @@ select option{background:var(--bg3)}
 .info{background:var(--gold4);border-radius:var(--rs);padding:11px 13px;font-size:12px;color:var(--ambertx);margin-top:.75rem;border:1px solid rgba(212,168,67,.15);line-height:1.6}
 .divider{height:1px;background:var(--bd);margin:1rem 0}
 .loading{text-align:center;padding:3rem;color:var(--tx3);font-size:14px}
+
+/* Skeleton */
+@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+.skel{background:linear-gradient(90deg,var(--sur) 25%,var(--sur2) 50%,var(--sur) 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;border-radius:var(--rss)}
+.skel-card{background:var(--sur);border-radius:var(--r);border:1px solid var(--bd);padding:1rem 1.1rem;margin-bottom:.75rem}
+.skel-line{height:14px;margin-bottom:8px}
+.skel-line.sm{height:10px;width:60%}
+.skel-line.full{width:100%}
+.skel-line.half{width:50%}
+.skel-badge{height:20px;width:60px;border-radius:10px;margin-bottom:8px}
+.skel-amount{height:22px;width:80px;border-radius:6px}
+
+/* Better settlements */
+.si-from-wrap{display:flex;align-items:center;gap:6px}
+.si-to-wrap{display:flex;align-items:center;gap:6px}
+.si-avatar{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
+.si-avatar.red{background:var(--redbg);color:var(--redtx)}
+.si-avatar.green{background:var(--greenbg);color:var(--greentx)}
+.si-name{font-weight:700;font-size:13px}
+.si-name.red{color:var(--redtx)}
+.si-name.green{color:var(--greentx)}
+.si-arrow-wrap{display:flex;flex-direction:column;align-items:center;flex-shrink:0}
+.si-arrow-line{width:40px;height:2px;background:linear-gradient(90deg,var(--redbg),var(--greenbg))}
+.si-arrow-icon{font-size:10px;color:var(--tx3);margin-top:1px}
 </style>
 </head>
 <body>
@@ -279,7 +303,10 @@ select option{background:var(--bg3)}
   <div class="dash-body">
     <div class="lbl">مجموعاتي</div>
     <button class="new-group-btn" id="new-group-btn">+ إنشاء مجموعة جديدة</button>
-    <div id="groups-list"><div class="loading">جاري التحميل...</div></div>
+    <div id="groups-list">
+  <div class="skel-card"><div class="skel skel-line skel-badge"></div><div class="skel skel-line full"></div><div class="skel skel-line sm"></div></div>
+  <div class="skel-card"><div class="skel skel-line skel-badge"></div><div class="skel skel-line full"></div><div class="skel skel-line sm"></div></div>
+</div>
   </div>
 </div>
 
@@ -975,7 +1002,31 @@ function renderResult(){
   }).join("");
   const txns=calcSettlements(calcBalances());
   const sl=document.getElementById("settlements");
-  sl.innerHTML=!txns.length?(!expenses.length?'<div class="empty"><div class="empty-icon">📊</div>أضف مصاريف أولاً</div>':'<div class="empty"><div class="empty-icon">✅</div>الحسابات متساوية!</div>'):txns.map(t=>'<div class="si"><span class="sf">'+t.from+'</span><span class="sarr">←</span><span class="st">'+t.to+'</span><span class="sv">'+t.amount.toFixed(2)+' ر</span></div>').join("");
+  if (!txns.length) {
+    sl.innerHTML = !expenses.length
+      ? '<div class="empty"><div class="empty-icon">📊</div>أضف مصاريف أولاً</div>'
+      : '<div class="empty"><div class="empty-icon">✅</div>الحسابات متساوية! مفيش أحد يدفع لحد</div>';
+  } else {
+    sl.innerHTML = txns.map(t => {
+      const fromAv = t.from.charAt(0);
+      const toAv = t.to.charAt(0);
+      return '<div class="si">' +
+        '<div class="si-from-wrap">' +
+          '<div class="si-avatar red">' + fromAv + '</div>' +
+          '<span class="si-name red">' + t.from + '</span>' +
+        '</div>' +
+        '<div class="si-arrow-wrap">' +
+          '<div class="si-arrow-line"></div>' +
+          '<div class="si-arrow-icon">←</div>' +
+        '</div>' +
+        '<div class="si-to-wrap">' +
+          '<div class="si-avatar green">' + toAv + '</div>' +
+          '<span class="si-name green">' + t.to + '</span>' +
+        '</div>' +
+        '<span class="sv">' + t.amount.toFixed(2) + ' ر</span>' +
+      '</div>';
+    }).join("");
+  }
   if(isAdmin){
     const pf=document.getElementById("pay-from"),pt=document.getElementById("pay-to");
     const cf=pf.value,ct=pt.value;
