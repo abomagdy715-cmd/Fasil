@@ -199,8 +199,9 @@ select option{background:var(--bg3)}
 .pay-row{display:flex;align-items:center;gap:6px;margin-bottom:8px}
 .pay-row select{flex:1;height:38px;font-size:13px}
 .pay-row input{width:90px;flex-shrink:0;height:38px}
-.pay-type-btn{flex:1;padding:8px;text-align:center;font-size:12px;font-weight:600;border-radius:var(--rss);cursor:pointer;border:1px solid var(--bd2);color:var(--tx2);background:var(--bg3);transition:all .2s}
+.pay-type-btn{flex:1;padding:10px 8px;text-align:center;font-size:13px;font-weight:600;border-radius:var(--rss);cursor:pointer;border:1px solid var(--bd2);color:var(--tx2);background:var(--bg3);transition:all .2s;user-select:none;-webkit-user-select:none}
 .pay-type-btn.on{background:var(--gold3);border-color:var(--gold);color:var(--gold)}
+.pay-type-btn:active{opacity:.7}
 .plog-title{font-size:10px;color:var(--tx3);font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px;margin-top:.8rem}
 .plog-item{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px 11px;background:var(--greenbg);border:1px solid rgba(82,192,122,.2);border-radius:var(--rss);margin-bottom:5px;font-size:12px}
 .pi-from{font-weight:700;color:var(--redtx)}
@@ -766,7 +767,7 @@ async function addPerson() {
 // ── ADD FORM ──
 let splitType = "equal";
 
-function setSplitType(type) {
+window.setSplitType = function(type) {
   splitType = type;
   document.getElementById("split-type-equal").classList.toggle("on", type==="equal");
   document.getElementById("split-type-manual").classList.toggle("on", type==="manual");
@@ -774,7 +775,7 @@ function setSplitType(type) {
   document.getElementById("split-manual-section").style.display = type==="manual" ? "" : "none";
   if (type==="manual") renderManualSplits();
   updatePreview();
-}
+};
 
 function renderManualSplits() {
   const el = document.getElementById("manual-splits");
@@ -987,7 +988,7 @@ function renderResult(){
 }
 
 let payType = "pay"; // pay or dep
-function setPayType(type) {
+window.setPayType = function(type) {
   payType = type;
   document.getElementById("type-pay").classList.toggle("on", type==="pay");
   document.getElementById("type-dep").classList.toggle("on", type==="dep");
@@ -1000,7 +1001,7 @@ function setPayType(type) {
     document.getElementById("pay-to").closest(".pay-row").style.opacity = "";
     document.getElementById("pay-to").closest(".pay-row").style.pointerEvents = "";
   }
-}
+};
 
 document.getElementById("add-pay-btn").onclick=async()=>{
   const from=document.getElementById("pay-from").value;
