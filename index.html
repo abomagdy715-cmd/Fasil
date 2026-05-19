@@ -199,6 +199,8 @@ select option{background:var(--bg3)}
 .pay-row{display:flex;align-items:center;gap:6px;margin-bottom:8px}
 .pay-row select{flex:1;height:38px;font-size:13px}
 .pay-row input{width:90px;flex-shrink:0;height:38px}
+.pay-type-btn{flex:1;padding:8px;text-align:center;font-size:12px;font-weight:600;border-radius:var(--rss);cursor:pointer;border:1px solid var(--bd2);color:var(--tx2);background:var(--bg3);transition:all .2s}
+.pay-type-btn.on{background:var(--gold3);border-color:var(--gold);color:var(--gold)}
 .plog-title{font-size:10px;color:var(--tx3);font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px;margin-top:.8rem}
 .plog-item{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px 11px;background:var(--greenbg);border:1px solid rgba(82,192,122,.2);border-radius:var(--rss);margin-bottom:5px;font-size:12px}
 .pi-from{font-weight:700;color:var(--redtx)}
@@ -334,7 +336,18 @@ select option{background:var(--bg3)}
           <button class="btn-sm" id="add-deduct-btn">+ إضافة خصم شخصي</button>
           <div class="prev" id="shared-preview"></div>
         </div>
-        <div class="fl fg-full"><label>👥 يتوزع على</label><div class="sc" id="split-chips"></div></div>
+        <div class="fl fg-full">
+          <label>👥 طريقة التقسيم</label>
+          <div style="display:flex;gap:6px;margin-top:4px;margin-bottom:8px">
+            <div class="pay-type-btn on" id="split-type-equal" onclick="setSplitType('equal')">⚖️ بالتساوي</div>
+            <div class="pay-type-btn" id="split-type-manual" onclick="setSplitType('manual')">✏️ يدوي</div>
+          </div>
+          <div id="split-equal-section"><div class="sc" id="split-chips"></div></div>
+          <div id="split-manual-section" style="display:none">
+            <div id="manual-splits"></div>
+            <div class="prev" id="manual-preview" style="display:block;margin-top:4px"></div>
+          </div>
+        </div>
       </div>
       <button class="btn-p" id="add-exp-btn">إضافة المصروف</button>
     </div>
@@ -364,6 +377,13 @@ select option{background:var(--bg3)}
             <select id="pay-from"></select>
             <span style="color:var(--tx3);font-size:20px;flex-shrink:0">←</span>
             <select id="pay-to"></select>
+          </div>
+        </div>
+        <div class="fl fg-full">
+          <label>نوع العملية</label>
+          <div style="display:flex;gap:6px;margin-top:3px">
+            <div class="pay-type-btn on" id="type-pay" onclick="setPayType('pay')">💸 دفع لشخص</div>
+            <div class="pay-type-btn" id="type-dep" onclick="setPayType('dep')">💰 إيداع في المجموعة</div>
           </div>
         </div>
         <div class="fl"><label>💵 المبلغ</label><input type="number" id="pay-amount" placeholder="0.00" min="0" step="0.01"/></div>
@@ -744,11 +764,63 @@ async function addPerson() {
 }
 
 // ── ADD FORM ──
+let splitType = "equal";
+
+function setSplitType(type) {
+  splitType = type;
+  document.getElementById("split-type-equal").classList.toggle("on", type==="equal");
+  document.getElementById("split-type-manual").classList.toggle("on", type==="manual");
+  document.getElementById("split-equal-section").style.display = type==="equal" ? "" : "none";
+  document.getElementById("split-manual-section").style.display = type==="manual" ? "" : "none";
+  if (type==="manual") renderManualSplits();
+  updatePreview();
+}
+
+function renderManualSplits() {
+  const el = document.getElementById("manual-splits");
+  el.innerHTML = people.map(p =>
+    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">' +
+    '<span style="flex:1;font-size:13px;color:var(--tx)">' + p + '</span>' +
+    '<input type="number" class="manual-inp" data-name="' + p + '" placeholder="0.00" min="0" step="0.01" style="width:100px;height:36px;font-size:13px" oninput="updateManualPreview()"/>' +
+    '<span style="font-size:12px;color:var(--tx2)">ر</span>' +
+    '</div>'
+  ).join("");
+  updateManualPreview();
+}
+
+function getManualSplits() {
+  return [...document.querySelectorAll(".manual-inp")]
+    .map(inp => ({ name: inp.dataset.name, amount: parseFloat(inp.value) || 0 }))
+    .filter(x => x.amount > 0);
+}
+
+function updateManualPreview() {
+  const total = parseFloat(document.getElementById("exp-amount").value) || 0;
+  const splits = getManualSplits();
+  const splitTotal = splits.reduce((s,x) => s + x.amount, 0);
+  const prev = document.getElementById("manual-preview");
+  if (splitTotal > 0) {
+    const diff = total - splitTotal;
+    const color = Math.abs(diff) < 0.01 ? "var(--greentx)" : "var(--redtx)";
+    prev.style.display = "block";
+    prev.innerHTML = 
+      "المجموع: <strong>" + splitTotal.toFixed(2) + " ر</strong>" +
+      (Math.abs(diff) > 0.01 ? " · <span style='color:" + color + "'>فارق: " + diff.toFixed(2) + " ر</span>" : " · <span style='color:var(--greentx)'>✓ مظبوط</span>");
+  } else {
+    prev.style.display = "none";
+  }
+}
+
 function renderAddForm() {
   document.getElementById("exp-payer").innerHTML = people.map(p=>'<option value="'+p+'">'+p+'</option>').join("");
   if (!document.getElementById("exp-date").value) document.getElementById("exp-date").value = new Date().toISOString().split("T")[0];
   document.getElementById("deductions-list").innerHTML="";
   document.getElementById("shared-preview").style.display="none";
+  splitType = "equal";
+  document.getElementById("split-type-equal").classList.add("on");
+  document.getElementById("split-type-manual").classList.remove("on");
+  document.getElementById("split-equal-section").style.display = "";
+  document.getElementById("split-manual-section").style.display = "none";
   renderSplitChips(people);
 }
 function renderSplitChips(sel) {
@@ -799,17 +871,37 @@ document.getElementById("add-exp-btn").onclick = async () => {
   const amount=parseFloat(document.getElementById("exp-amount").value);
   const payer=document.getElementById("exp-payer").value;
   const date=document.getElementById("exp-date").value;
-  const split=getSplit(); const deds=getDeductions();
+  const deds=getDeductions();
   const td=deds.reduce((s,d)=>s+d.amount,0);
   if(!name||!amount||amount<=0){toast("اكتب اسم المصروف والمبلغ","error");return}
-  if(td>=amount){toast("مجموع الخصومات أكبر من المبلغ!","error");return}
-  if(!split.length){toast("اختر على مين يتوزع المصروف","error");return}
+
+  let split=[], manualSplits=[], useManual=false;
+
+  if (splitType === "manual") {
+    const ms = getManualSplits();
+    if (!ms.length){toast("حدد نصيب كل شخص","error");return}
+    const msTotal = ms.reduce((s,x)=>s+x.amount,0);
+    if (Math.abs(msTotal - amount) > 0.01){toast("مجموع النصيبات ("+msTotal.toFixed(2)+") مش مساوي المبلغ ("+amount.toFixed(2)+")","error");return}
+    split = ms.map(x=>x.name);
+    manualSplits = ms;
+    useManual = true;
+  } else {
+    split = getSplit();
+    if(td>=amount){toast("مجموع الخصومات أكبر من المبلغ!","error");return}
+    if(!split.length){toast("اختر على مين يتوزع المصروف","error");return}
+  }
+
   const id=Date.now().toString();
-  await setDoc(doc(db,"groups/"+currentGroup.id+"/expenses",id),{id,name,amount,payer,date,split,deductions:deds,ts:Date.now()});
+  await setDoc(doc(db,"groups/"+currentGroup.id+"/expenses",id),{id,name,amount,payer,date,split,manualSplits,useManual,deductions:deds,ts:Date.now()});
   document.getElementById("exp-name").value="";
   document.getElementById("exp-amount").value="";
   document.getElementById("deductions-list").innerHTML="";
   document.getElementById("shared-preview").style.display="none";
+  splitType = "equal";
+  document.getElementById("split-type-equal").classList.add("on");
+  document.getElementById("split-type-manual").classList.remove("on");
+  document.getElementById("split-equal-section").style.display = "";
+  document.getElementById("split-manual-section").style.display = "none";
   renderSplitChips(people);
   toast("✓ تم إضافة المصروف");
   document.getElementById("tab-expenses").click();
@@ -826,8 +918,9 @@ function renderExpenses(){
     const deds=e.deductions||[]; const td=deds.reduce((s,d)=>s+d.amount,0); const sh=e.amount-td;
     const tags=deds.map(d=>'<span class="etag">✂️ '+d.person+': '+d.amount.toFixed(2)+' ر</span>').join("");
     const dl=td>0?"<br>مشترك: <strong>"+sh.toFixed(2)+" ر</strong> "+tags:"";
+    const manualInfo = e.useManual && e.manualSplits ? "<br>"+e.manualSplits.map(ms=>'<span class="etag">'+ms.name+': '+ms.amount.toFixed(2)+' ر</span>').join("") : "";
     const del=isAdmin?'<button class="delbtn" data-id="'+e.id+'">🗑</button>':"";
-    return '<div class="ei"><div style="flex:1;min-width:0"><div class="en">'+e.name+'</div><div class="em">💳 '+e.payer+' · 👥 '+e.split.join("، ")+(e.date?" · "+e.date:"")+dl+'</div></div><div style="display:flex;align-items:center;gap:5px;flex-shrink:0"><span class="ea">'+e.amount.toFixed(2)+' ر</span>'+del+'</div></div>';
+    return '<div class="ei"><div style="flex:1;min-width:0"><div class="en">'+e.name+'</div><div class="em">💳 '+e.payer+' · 👥 '+e.split.join("، ")+(e.date?" · "+e.date:"")+dl+manualInfo+'</div></div><div style="display:flex;align-items:center;gap:5px;flex-shrink:0"><span class="ea">'+e.amount.toFixed(2)+' ر</span>'+del+'</div></div>';
   }).join("");
   if(isAdmin) el.querySelectorAll(".delbtn").forEach(btn=>{
     btn.onclick=async()=>{if(!confirm("حذف هذا المصروف؟"))return;await deleteDoc(doc(db,"groups/"+currentGroup.id+"/expenses",btn.dataset.id));toast("تم الحذف","error")};
@@ -838,12 +931,26 @@ function renderExpenses(){
 function calcBalances(){
   const bal={};people.forEach(p=>bal[p]=0);
   expenses.forEach(e=>{
-    const deds=e.deductions||[];const td=deds.reduce((s,d)=>s+d.amount,0);const sh=e.amount-td;
+    const deds=e.deductions||[];const td=deds.reduce((s,d)=>s+d.amount,0);
     bal[e.payer]=(bal[e.payer]||0)+e.amount;
-    e.split.forEach(p=>{bal[p]=(bal[p]||0)-sh/e.split.length});
+    if (e.useManual && e.manualSplits && e.manualSplits.length) {
+      // تقسيم يدوي
+      e.manualSplits.forEach(ms=>{bal[ms.name]=(bal[ms.name]||0)-ms.amount});
+    } else {
+      const sh=e.amount-td;
+      e.split.forEach(p=>{bal[p]=(bal[p]||0)-sh/e.split.length});
+    }
     deds.forEach(d=>{if(d.onPeople&&d.onPeople.length){const s2=d.amount/d.onPeople.length;d.onPeople.forEach(p=>{bal[p]=(bal[p]||0)-s2})}});
   });
-  payments.forEach(p=>{bal[p.from]=(bal[p.from]||0)+p.amount;bal[p.to]=(bal[p.to]||0)-p.amount});
+  payments.forEach(p=>{
+    if (p.type === "dep" || p.to === "__deposit__") {
+      // إيداع: يزيد رصيد الشخص فقط (مش بيخصم من أحد)
+      bal[p.from]=(bal[p.from]||0)+p.amount;
+    } else {
+      bal[p.from]=(bal[p.from]||0)+p.amount;
+      if(bal[p.to]!==undefined) bal[p.to]=(bal[p.to]||0)-p.amount;
+    }
+  });
   return bal;
 }
 function calcSettlements(bal){
@@ -879,26 +986,57 @@ function renderResult(){
   renderPayLog();
 }
 
+let payType = "pay"; // pay or dep
+function setPayType(type) {
+  payType = type;
+  document.getElementById("type-pay").classList.toggle("on", type==="pay");
+  document.getElementById("type-dep").classList.toggle("on", type==="dep");
+  // إخفاء/إظهار المستلم
+  const toRow = document.getElementById("pay-to").closest(".pay-row");
+  if (type === "dep") {
+    document.getElementById("pay-to").closest(".pay-row").style.opacity = ".3";
+    document.getElementById("pay-to").closest(".pay-row").style.pointerEvents = "none";
+  } else {
+    document.getElementById("pay-to").closest(".pay-row").style.opacity = "";
+    document.getElementById("pay-to").closest(".pay-row").style.pointerEvents = "";
+  }
+}
+
 document.getElementById("add-pay-btn").onclick=async()=>{
-  const from=document.getElementById("pay-from").value,to=document.getElementById("pay-to").value;
+  const from=document.getElementById("pay-from").value;
   const amount=parseFloat(document.getElementById("pay-amount").value);
   const date=document.getElementById("pay-date").value;
-  if(!from||!to||!amount||amount<=0){toast("اكمل بيانات الدفعة","error");return}
-  if(from===to){toast("الدافع والمستلم نفس الشخص!","error");return}
+  if(!from||!amount||amount<=0){toast("اكمل بيانات الدفعة","error");return}
+  
+  let to, label;
+  if (payType === "dep") {
+    // إيداع — يتحسب كإن الشخص دفع للمجموعة (رصيد موجب له)
+    to = "__deposit__";
+    label = "إيداع";
+  } else {
+    to = document.getElementById("pay-to").value;
+    if(from===to){toast("الدافع والمستلم نفس الشخص!","error");return}
+    label = "دفع";
+  }
+  
   const id=Date.now().toString();
-  await setDoc(doc(db,"groups/"+currentGroup.id+"/payments",id),{id,from,to,amount,date,ts:Date.now()});
+  await setDoc(doc(db,"groups/"+currentGroup.id+"/payments",id),{id,from,to,amount,date,type:payType,ts:Date.now()});
   document.getElementById("pay-amount").value="";
-  toast("✓ تم تسجيل الدفعة");
+  toast("✓ تم تسجيل "+label);
   renderResult();
 };
 
 function renderPayLog(){
   const el=document.getElementById("pay-log");
   if(!payments.length){el.innerHTML="";return}
-  el.innerHTML='<div class="plog-title">سجل الدفعات</div>'+
+  el.innerHTML='<div class="plog-title">سجل الدفعات والإيداعات</div>'+
     payments.map(p=>{
       const del=isAdmin?'<button class="pi-del" data-id="'+p.id+'">🗑</button>':"";
-      return '<div class="plog-item"><span class="pi-from">'+p.from+'</span><span class="pi-word">دفع لـ</span><span class="pi-to">'+p.to+'</span><span class="pi-amt">'+p.amount.toFixed(2)+' ر</span><span class="pi-date">'+(p.date||"")+'</span>'+del+'</div>';
+      const isDeposit = p.type==="dep" || p.to==="__deposit__";
+      const word = isDeposit ? "أودع في المجموعة" : "دفع لـ";
+      const toSpan = isDeposit ? "" : '<span class="pi-to">'+p.to+'</span>';
+      const icon = isDeposit ? "💰" : "💸";
+      return '<div class="plog-item">'+icon+' <span class="pi-from">'+p.from+'</span><span class="pi-word">'+word+'</span>'+toSpan+'<span class="pi-amt">'+p.amount.toFixed(2)+' ر</span><span class="pi-date">'+(p.date||"")+'</span>'+del+'</div>';
     }).join("");
   if(isAdmin) el.querySelectorAll(".pi-del").forEach(btn=>{
     btn.onclick=async()=>{if(!confirm("حذف هذه الدفعة؟"))return;await deleteDoc(doc(db,"groups/"+currentGroup.id+"/payments",btn.dataset.id));toast("تم الحذف","error");renderResult()};
