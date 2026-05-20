@@ -211,6 +211,38 @@ select option{background:var(--bg3)}
 .pi-date{color:var(--tx3);font-size:10px}
 .pi-del{background:none;border:none;color:var(--tx3);cursor:pointer;font-size:15px;padding:0 2px}
 
+/* Edit Modal */
+.edit-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:300;display:none;align-items:flex-end;justify-content:center}
+.edit-overlay.on{display:flex}
+.edit-modal{background:var(--sur);border-radius:var(--r) var(--r) 0 0;width:100%;max-width:480px;padding:1.4rem;max-height:85vh;overflow-y:auto}
+.edit-modal::before{content:'';display:block;width:36px;height:4px;background:var(--bd2);border-radius:2px;margin:0 auto 1.2rem}
+
+/* Report */
+.report-screen{position:fixed;inset:0;background:var(--bg);z-index:400;display:none;flex-direction:column;overflow-y:auto}
+.report-screen.on{display:flex}
+.report-header{background:rgba(13,13,13,.95);padding:1rem 1.2rem;padding-top:calc(1rem + env(safe-area-inset-top));display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--bd);position:sticky;top:0}
+.report-body{padding:1.2rem;flex:1}
+.report-title{font-size:20px;font-weight:800;color:var(--tx)}
+.report-sub{font-size:12px;color:var(--tx2);margin-top:2px}
+.report-section{margin-bottom:1.5rem}
+.report-section-title{font-size:11px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:.6rem}
+.report-person-card{background:var(--sur);border-radius:var(--rs);border:1px solid var(--bd);padding:12px 14px;margin-bottom:8px}
+.report-person-name{font-size:15px;font-weight:700;margin-bottom:8px}
+.report-row{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px}
+.report-row span:first-child{color:var(--tx2)}
+.report-row span:last-child{font-weight:600}
+.report-total-row{display:flex;justify-content:space-between;font-size:14px;margin-top:8px;padding-top:8px;border-top:1px solid var(--bd)}
+.report-total-row span:first-child{color:var(--tx2)}
+.report-net-pos{color:var(--greentx);font-weight:700}
+.report-net-neg{color:var(--redtx);font-weight:700}
+.report-net-zer{color:var(--tx3);font-weight:700}
+.report-summary-card{background:var(--gold4);border:1px solid rgba(212,168,67,.2);border-radius:var(--rs);padding:14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+.report-summary-label{font-size:12px;color:var(--ambertx)}
+.report-summary-value{font-size:18px;font-weight:700;color:var(--gold)}
+.pdf-btn{background:linear-gradient(135deg,var(--gold),var(--gold2));color:#0D0D0D;border:none;border-radius:var(--rs);height:48px;font-size:15px;font-weight:700;cursor:pointer;font-family:'Tajawal',sans-serif;width:100%;margin-bottom:12px;box-shadow:0 4px 20px rgba(212,168,67,.25)}
+.edit-btn{background:var(--gold3);border:1px solid rgba(212,168,67,.3);color:var(--gold);font-size:13px;cursor:pointer;padding:5px 8px;border-radius:var(--rss);font-family:'Tajawal',sans-serif;font-weight:600}
+.edit-btn:active{opacity:.7}
+
 /* Misc */
 .empty{text-align:center;padding:2.5rem 1rem;color:var(--tx3);font-size:14px}
 .empty-icon{font-size:34px;margin-bottom:8px;opacity:.5}
@@ -328,6 +360,37 @@ select option{background:var(--bg3)}
   </div>
 </div>
 
+<!-- EDIT EXPENSE MODAL -->
+<div class="edit-overlay" id="edit-overlay">
+  <div class="edit-modal">
+    <div class="modal-title">✏️ تعديل المصروف</div>
+    <div class="fg">
+      <div class="fl fg-full"><label>📝 اسم المصروف</label><input type="text" id="edit-name" placeholder="اسم المصروف"/></div>
+      <div class="fl"><label>💰 المبلغ</label><input type="number" id="edit-amount" placeholder="0.00" min="0" step="0.01"/></div>
+      <div class="fl"><label>📅 التاريخ</label><input type="date" id="edit-date"/></div>
+      <div class="fl fg-full"><label>💳 من دفع؟</label><select id="edit-payer"></select></div>
+      <div class="fl fg-full"><label>👥 يتوزع على</label><div class="sc" id="edit-split-chips"></div></div>
+    </div>
+    <button class="btn-p" id="edit-save-btn">💾 حفظ التعديل</button>
+    <button class="modal-cancel" id="edit-cancel-btn" style="margin-top:8px;width:100%">إلغاء</button>
+  </div>
+</div>
+
+<!-- REPORT SCREEN -->
+<div class="report-screen" id="report-screen">
+  <div class="report-header">
+    <button class="back-btn" id="report-back-btn">&#8592;</button>
+    <div>
+      <div class="report-title">📊 التقرير النهائي</div>
+      <div class="report-sub" id="report-group-name"></div>
+    </div>
+  </div>
+  <div class="report-body">
+    <button class="pdf-btn" id="pdf-btn">📄 تصدير PDF</button>
+    <div id="report-content"></div>
+  </div>
+</div>
+
 <!-- GROUP SCREEN -->
 <div id="group-screen" class="screen">
   <div class="group-header">
@@ -390,7 +453,10 @@ select option{background:var(--bg3)}
   </div>
 
   <div id="pg-result" class="pg">
-    <div class="lbl">الرصيد الحالي</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.55rem;margin-top:0">
+    <div class="lbl" style="margin:0">الرصيد الحالي</div>
+    <button id="report-btn" style="background:var(--gold3);border:1px solid rgba(212,168,67,.3);color:var(--gold);border-radius:var(--rss);padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Tajawal',sans-serif">📊 التقرير</button>
+  </div>
     <div id="balances"></div>
     <div class="divider"></div>
     <div class="lbl">من يدفع لمين؟</div>
@@ -948,11 +1014,17 @@ function renderExpenses(){
     const dl=td>0?"<br>مشترك: <strong>"+sh.toFixed(2)+" ر</strong> "+tags:"";
     const manualInfo = e.useManual && e.manualSplits ? "<br>"+e.manualSplits.map(ms=>'<span class="etag">'+ms.name+': '+ms.amount.toFixed(2)+' ر</span>').join("") : "";
     const del=isAdmin?'<button class="delbtn" data-id="'+e.id+'">🗑</button>':"";
-    return '<div class="ei"><div style="flex:1;min-width:0"><div class="en">'+e.name+'</div><div class="em">💳 '+e.payer+' · 👥 '+e.split.join("، ")+(e.date?" · "+e.date:"")+dl+manualInfo+'</div></div><div style="display:flex;align-items:center;gap:5px;flex-shrink:0"><span class="ea">'+e.amount.toFixed(2)+' ر</span>'+del+'</div></div>';
+    const editBtn=isAdmin?'<button class="edit-btn" data-id="'+e.id+'">✏️ تعديل</button>':"";
+    return '<div class="ei"><div style="flex:1;min-width:0"><div class="en">'+e.name+'</div><div class="em">💳 '+e.payer+' · 👥 '+e.split.join("، ")+(e.date?" · "+e.date:"")+dl+manualInfo+'</div></div><div style="display:flex;align-items:center;gap:5px;flex-shrink:0"><span class="ea">'+e.amount.toFixed(2)+' ر</span>'+editBtn+del+'</div></div>';
   }).join("");
-  if(isAdmin) el.querySelectorAll(".delbtn").forEach(btn=>{
-    btn.onclick=async()=>{if(!confirm("حذف هذا المصروف؟"))return;await deleteDoc(doc(db,"groups/"+currentGroup.id+"/expenses",btn.dataset.id));toast("تم الحذف","error")};
-  });
+  if(isAdmin) {
+    el.querySelectorAll(".delbtn").forEach(btn=>{
+      btn.onclick=async()=>{if(!confirm("حذف هذا المصروف؟"))return;await deleteDoc(doc(db,"groups/"+currentGroup.id+"/expenses",btn.dataset.id));toast("تم الحذف","error")};
+    });
+    el.querySelectorAll(".edit-btn").forEach(btn=>{
+      btn.onclick=()=>window.openEditModal(btn.dataset.id);
+    });
+  }
 }
 
 // ── BALANCES ──
@@ -1093,6 +1165,300 @@ function renderPayLog(){
   if(isAdmin) el.querySelectorAll(".pi-del").forEach(btn=>{
     btn.onclick=async()=>{if(!confirm("حذف هذه الدفعة؟"))return;await deleteDoc(doc(db,"groups/"+currentGroup.id+"/payments",btn.dataset.id));toast("تم الحذف","error");renderResult()};
   });
+}
+
+// ══ EDIT EXPENSE ══
+let editingExpenseId = null;
+
+window.openEditModal = function(expId) {
+  const exp = expenses.find(e => e.id === expId);
+  if (!exp) return;
+  editingExpenseId = expId;
+  document.getElementById("edit-name").value = exp.name;
+  document.getElementById("edit-amount").value = exp.amount;
+  document.getElementById("edit-date").value = exp.date || "";
+  document.getElementById("edit-payer").innerHTML = people.map(p => '<option value="'+p+'"'+(p===exp.payer?' selected':'')+'>'+p+'</option>').join("");
+  // split chips
+  const sc = document.getElementById("edit-split-chips");
+  sc.innerHTML = "";
+  people.forEach(p => {
+    const d = document.createElement("div");
+    d.textContent = p;
+    if ((exp.split||[]).includes(p)) d.classList.add("on");
+    d.onclick = () => d.classList.toggle("on");
+    sc.appendChild(d);
+  });
+  document.getElementById("edit-overlay").classList.add("on");
+};
+
+document.getElementById("edit-cancel-btn").onclick = () => {
+  document.getElementById("edit-overlay").classList.remove("on");
+  editingExpenseId = null;
+};
+
+document.getElementById("edit-save-btn").onclick = async () => {
+  if (!editingExpenseId) return;
+  const name = document.getElementById("edit-name").value.trim();
+  const amount = parseFloat(document.getElementById("edit-amount").value);
+  const payer = document.getElementById("edit-payer").value;
+  const date = document.getElementById("edit-date").value;
+  const split = [...document.querySelectorAll("#edit-split-chips div.on")].map(e => e.textContent);
+  if (!name || !amount || amount <= 0) { toast("اكتب الاسم والمبلغ","error"); return; }
+  if (!split.length) { toast("اختر على مين يتوزع","error"); return; }
+  const oldExp = expenses.find(e => e.id === editingExpenseId);
+  await setDoc(doc(db,"groups/"+currentGroup.id+"/expenses",editingExpenseId), {
+    ...oldExp, name, amount, payer, date, split, ts: oldExp.ts
+  });
+  document.getElementById("edit-overlay").classList.remove("on");
+  editingExpenseId = null;
+  toast("✓ تم تعديل المصروف");
+};
+
+// ══ REPORT ══
+document.getElementById("report-btn").onclick = () => showReport();
+document.getElementById("report-back-btn").onclick = () => {
+  document.getElementById("report-screen").classList.remove("on");
+};
+
+function showReport() {
+  document.getElementById("report-group-name").textContent = currentGroup.name;
+  document.getElementById("report-screen").classList.add("on");
+  renderReport();
+}
+
+function renderReport() {
+  const bal = calcBalances();
+  const totalExp = expenses.reduce((s,e) => s+e.amount, 0);
+  const el = document.getElementById("report-content");
+
+  // Summary cards
+  let html = '<div class="report-section">';
+  html += '<div class="report-section-title">ملخص عام</div>';
+  html += '<div class="report-summary-card"><span class="report-summary-label">💰 إجمالي المصاريف</span><span class="report-summary-value">'+totalExp.toFixed(2)+' ر</span></div>';
+  html += '<div class="report-summary-card"><span class="report-summary-label">📋 عدد المصاريف</span><span class="report-summary-value">'+expenses.length+'</span></div>';
+  html += '<div class="report-summary-card"><span class="report-summary-label">👥 عدد الأشخاص</span><span class="report-summary-value">'+people.length+'</span></div>';
+  html += '</div>';
+
+  // Per person breakdown
+  html += '<div class="report-section">';
+  html += '<div class="report-section-title">تفاصيل كل شخص</div>';
+
+  people.forEach(p => {
+    const paid = expenses.filter(e=>e.payer===p).reduce((s,e)=>s+e.amount,0);
+    const consumed = (() => {
+      let c = 0;
+      expenses.forEach(e => {
+        if (e.useManual && e.manualSplits) {
+          const ms = e.manualSplits.find(x=>x.name===p);
+          if (ms) c += ms.amount;
+        } else {
+          const deds = e.deductions||[];
+          const td = deds.reduce((s,d)=>s+d.amount,0);
+          const sh = e.amount - td;
+          if ((e.split||[]).includes(p)) c += sh/(e.split||[]).length;
+          deds.forEach(d=>{if((d.onPeople||[]).includes(p))c+=d.amount/(d.onPeople||[]).length});
+        }
+      });
+      return c;
+    })();
+    const net = bal[p] || 0;
+    const netCls = net > 0.01 ? "report-net-pos" : net < -0.01 ? "report-net-neg" : "report-net-zer";
+    const netTxt = net > 0.01 ? "له "+net.toFixed(2)+" ر" : net < -0.01 ? "عليه "+Math.abs(net).toFixed(2)+" ر" : "متساوي";
+
+    html += '<div class="report-person-card">';
+    html += '<div class="report-person-name">'+p+'</div>';
+    html += '<div class="report-row"><span>💳 إجمالي ما دفع</span><span>'+paid.toFixed(2)+' ر</span></div>';
+    html += '<div class="report-row"><span>🍽️ إجمالي ما استهلك</span><span>'+consumed.toFixed(2)+' ر</span></div>';
+    html += '<div class="report-total-row"><span>📊 الصافي</span><span class="'+netCls+'">'+netTxt+'</span></div>';
+    html += '</div>';
+  });
+  html += '</div>';
+
+  // Settlements needed
+  const txns = calcSettlements(calcBalances());
+  if (txns.length) {
+    html += '<div class="report-section">';
+    html += '<div class="report-section-title">التسويات المطلوبة</div>';
+    txns.forEach(t => {
+      html += '<div style="display:flex;align-items:center;gap:8px;background:var(--sur);border-radius:var(--rs);border:1px solid var(--bd);padding:10px 13px;margin-bottom:7px;font-size:13px">';
+      html += '<span style="font-weight:700;color:var(--redtx)">'+t.from+'</span>';
+      html += '<span style="color:var(--tx3)">يدفع لـ</span>';
+      html += '<span style="font-weight:700;color:var(--greentx)">'+t.to+'</span>';
+      html += '<span style="margin-right:auto;font-weight:700;color:var(--gold)">'+t.amount.toFixed(2)+' ر</span>';
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+
+  el.innerHTML = html;
+}
+
+// ══ PDF EXPORT ══
+document.getElementById("pdf-btn").onclick = () => exportPDF();
+
+function exportPDF() {
+  const bal = calcBalances();
+  const totalExp = expenses.reduce((s,e)=>s+e.amount,0);
+  const txns = calcSettlements(calcBalances());
+  const date = new Date().toLocaleDateString("ar-SA");
+
+  let html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"/>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:#0D0D0D;color:#F0EDE8;direction:rtl;min-height:100vh;padding:0}
+    
+    .cover{background:linear-gradient(135deg,#1a1408,#0D0D0D);padding:40px 32px 32px;border-bottom:1px solid rgba(212,168,67,.2);margin-bottom:32px}
+    .cover-logo{width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#D4A843,#E8C876);display:inline-flex;align-items:center;justify-content:center;font-size:28px;margin-bottom:16px;box-shadow:0 0 30px rgba(212,168,67,.3)}
+    .cover-title{font-size:32px;font-weight:800;color:#F0EDE8;margin-bottom:4px}
+    .cover-title span{color:#D4A843}
+    .cover-sub{font-size:13px;color:#888580;margin-top:8px}
+    .cover-group{font-size:18px;font-weight:700;color:#D4A843;margin-top:6px}
+
+    .body{padding:0 32px 40px}
+
+    .section{margin-bottom:28px}
+    .section-title{font-size:10px;font-weight:700;color:#555250;text-transform:uppercase;letter-spacing:.12em;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+    .section-title::after{content:'';flex:1;height:1px;background:rgba(255,255,255,.07)}
+
+    .summary-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:4px}
+    .summary-card{background:#1E1E1E;border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:16px;text-align:center;position:relative;overflow:hidden}
+    .summary-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,#D4A843,transparent)}
+    .summary-card label{font-size:10px;color:#888580;display:block;margin-bottom:6px;font-weight:600}
+    .summary-card span{font-size:22px;font-weight:800;color:#D4A843}
+
+    .person-card{background:#1E1E1E;border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:16px 18px;margin-bottom:10px;position:relative;overflow:hidden}
+    .person-card::before{content:'';position:absolute;top:0;bottom:0;right:0;width:3px}
+    .person-card.pos-card::before{background:linear-gradient(180deg,#52C07A,transparent)}
+    .person-card.neg-card::before{background:linear-gradient(180deg,#E05252,transparent)}
+    .person-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#D4A843,#E8C876);display:inline-flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#0D0D0D;margin-bottom:10px}
+    .person-name{font-size:16px;font-weight:700;color:#F0EDE8;margin-bottom:12px}
+    .person-row{display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px;padding-bottom:5px;border-bottom:1px solid rgba(255,255,255,.05)}
+    .person-row:last-of-type{border-bottom:none}
+    .person-row span:first-child{color:#888580}
+    .person-row span:last-child{font-weight:600;color:#F0EDE8}
+    .person-net{display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.1)}
+    .person-net label{font-size:11px;color:#888580;font-weight:600}
+    .net-pos{color:#90D8AA;font-size:16px;font-weight:800}
+    .net-neg{color:#F09090;font-size:16px;font-weight:800}
+    .net-zer{color:#555250;font-size:16px;font-weight:800}
+
+    .settle-item{display:flex;align-items:center;gap:10px;background:#1E1E1E;border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:12px 14px;margin-bottom:8px}
+    .settle-from{font-weight:700;color:#F09090;font-size:13px;background:rgba(224,82,82,.1);padding:4px 10px;border-radius:8px}
+    .settle-arrow{color:#555250;font-size:16px}
+    .settle-to{font-weight:700;color:#90D8AA;font-size:13px;background:rgba(82,192,122,.1);padding:4px 10px;border-radius:8px}
+    .settle-amt{margin-right:auto;font-weight:800;font-size:15px;color:#D4A843}
+
+    table{width:100%;border-collapse:collapse;font-size:12px}
+    thead tr{background:#1a1a18}
+    th{padding:10px 12px;text-align:right;font-weight:600;color:#888580;font-size:11px;letter-spacing:.04em;border-bottom:1px solid rgba(255,255,255,.07)}
+    td{padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.05);color:#F0EDE8}
+    tr:last-child td{border-bottom:none}
+    tr:hover td{background:rgba(255,255,255,.02)}
+    .td-amount{font-weight:700;color:#D4A843}
+
+    .footer{text-align:center;padding:24px;color:#555250;font-size:11px;border-top:1px solid rgba(255,255,255,.07);margin-top:32px}
+
+    @media print{
+      body{background:#fff;color:#1a1a18}
+      .cover{background:linear-gradient(135deg,#FAEEDA,#fff);border-bottom:1px solid #e8c876}
+      .cover-title{color:#1a1a18}.cover-title span{color:#D4A843}
+      .cover-sub,.cover-group{color:#5f5e5a}
+      .summary-card,.person-card,.settle-item{background:#fff;border-color:#eee}
+      .summary-card::before{background:linear-gradient(90deg,transparent,#D4A843,transparent)}
+      .summary-card label{color:#5f5e5a}.summary-card span{color:#D4A843}
+      .person-name{color:#1a1a18}.person-row span:last-child{color:#1a1a18}
+      .person-row span:first-child,.section-title{color:#888}
+      .person-net label{color:#888}
+      .settle-from{color:#A32D2D;background:#FCEBEB}.settle-to{color:#27500A;background:#EAF3DE}
+      .settle-arrow{color:#888}.settle-amt{color:#D4A843}
+      th{color:#888;background:#f5f4f0}td{color:#1a1a18;border-bottom-color:#f0efe9}
+      .td-amount{color:#D4A843}.footer{color:#888;border-top-color:#eee}
+      .section-title::after{background:#eee}
+      .net-pos{color:#27500A}.net-neg{color:#A32D2D}.net-zer{color:#888}
+      .person-card.pos-card::before{background:#52C07A}.person-card.neg-card::before{background:#E05252}
+    }
+  </style></head><body>
+
+  <div class="cover">
+    <div class="cover-logo">🪙</div>
+    <div class="cover-title">فا<span>صل</span></div>
+    <div class="cover-group">${currentGroup.name}</div>
+    <div class="cover-sub">تاريخ التقرير: ${date}</div>
+  </div>
+
+  <div class="body">
+  <div class="section">
+    <div class="section-title">ملخص عام</div>
+    <div class="summary-grid">
+      <div class="summary-card"><label>💰 إجمالي المصاريف</label><span>${totalExp.toFixed(2)} ر</span></div>
+      <div class="summary-card"><label>📋 عدد المصاريف</label><span>${expenses.length}</span></div>
+      <div class="summary-card"><label>👥 عدد الأشخاص</label><span>${people.length}</span></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">التسويات المطلوبة</div>`;
+
+  if (!txns.length) {
+    html += '<div style="text-align:center;padding:16px;background:#1E1E1E;border-radius:12px;color:#90D8AA;font-weight:700;border:1px solid rgba(82,192,122,.2)">✅ الحسابات متساوية! مفيش أحد يدفع لحد</div>';
+  } else {
+    txns.forEach(t => {
+      html += `<div class="settle-item"><span class="settle-from">${t.from}</span><span class="settle-arrow">←</span><span class="settle-to">${t.to}</span><span class="settle-amt">${t.amount.toFixed(2)} ر</span></div>`;
+    });
+  }
+
+  html += `</div><div class="section"><div class="section-title">تفاصيل كل شخص</div>`;
+
+  people.forEach(p => {
+    const paid = expenses.filter(e=>e.payer===p).reduce((s,e)=>s+e.amount,0);
+    const consumed = (() => {
+      let c = 0;
+      expenses.forEach(e => {
+        if (e.useManual && e.manualSplits) {
+          const ms = e.manualSplits.find(x=>x.name===p);
+          if (ms) c += ms.amount;
+        } else {
+          const deds = e.deductions||[];
+          const td = deds.reduce((s,d)=>s+d.amount,0);
+          const sh = e.amount - td;
+          if ((e.split||[]).includes(p)) c += sh/(e.split||[]).length;
+          deds.forEach(d=>{if((d.onPeople||[]).includes(p))c+=d.amount/(d.onPeople||[]).length});
+        }
+      });
+      return c;
+    })();
+    const net = bal[p]||0;
+    const netCls = net>0.01?"pos":net<-0.01?"neg":"zer";
+    const netTxt = net>0.01?"له "+net.toFixed(2)+" ر":net<-0.01?"عليه "+Math.abs(net).toFixed(2)+" ر":"متساوي";
+    const cardCls = net>0.01?"pos-card":net<-0.01?"neg-card":"";
+    html += `<div class="person-card ${cardCls}">
+      <div class="person-avatar">${p.charAt(0)}</div>
+      <div class="person-name">${p}</div>
+      <div class="person-row"><span>💳 إجمالي ما دفع</span><span>${paid.toFixed(2)} ر</span></div>
+      <div class="person-row"><span>🍽️ إجمالي ما استهلك</span><span>${consumed.toFixed(2)} ر</span></div>
+      <div class="person-net"><label>📊 الصافي</label><span class="${netCls}">${netTxt}</span></div>
+    </div>`;
+  });
+
+  html += '</div>';
+
+
+
+  if (expenses.length) {
+    html += '<div class="section"><div class="section-title">تفاصيل المصاريف</div><table><thead><tr><th>المصروف</th><th>المبلغ</th><th>الدافع</th><th>التاريخ</th></tr></thead><tbody>';
+    expenses.forEach(e => {
+      html += `<tr><td>${e.name}</td><td class="td-amount">${e.amount.toFixed(2)} ر</td><td>${e.payer}</td><td>${e.date||""}</td></tr>`;
+    });
+    html += '</tbody></table></div>';
+  }
+
+  html += `<div class="footer">تم إنشاء هذا التقرير بواسطة فاصل · ${date}</div>`;
+  html += '</div></body></html>';
+
+  const w = window.open("","_blank");
+  w.document.write(html);
+  w.document.close();
+  setTimeout(() => w.print(), 500);
 }
 
 // ── PWA ──
