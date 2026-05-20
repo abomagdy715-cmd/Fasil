@@ -335,7 +335,11 @@ select option{background:var(--bg3)}
   <div class="dash-body">
     <div class="lbl">مجموعاتي</div>
     <button class="new-group-btn" id="new-group-btn">+ إنشاء مجموعة جديدة</button>
-    <div id="groups-list">
+    <div id="groups-list-active"></div>
+    <button class="archive-toggle" id="show-archive-btn" onclick="toggleArchive()">
+      📦 <span id="archive-btn-text">عرض المجموعات المؤرشفة</span>
+    </button>
+    <div id="groups-list-archived" style="display:none">
   <div class="skel-card"><div class="skel skel-line skel-badge"></div><div class="skel skel-line full"></div><div class="skel skel-line sm"></div></div>
   <div class="skel-card"><div class="skel skel-line skel-badge"></div><div class="skel skel-line full"></div><div class="skel skel-line sm"></div></div>
 </div>
@@ -356,6 +360,7 @@ select option{background:var(--bg3)}
       <div class="auth-err" id="ng-err"></div>
       <button class="modal-btn" id="ng-create-btn">إنشاء المجموعة</button>
       <button class="modal-cancel" id="ng-cancel-btn">إلغاء</button>
+    </div>
     </div>
   </div>
 </div>
@@ -666,7 +671,7 @@ document.getElementById("logout-btn").onclick = () => signOut(auth);
 
 // ── DASHBOARD ──
 function loadGroups() {
-  const el = document.getElementById("groups-list");
+  const el = document.getElementById("groups-list-active"); // placeholder
   let myGroups = [], memberGroups = [];
   const render = async () => {
     const all = [...myGroups];
@@ -717,6 +722,7 @@ function loadGroups() {
           '<div class="gc-dropdown" id="menu-'+g.id+'">'+
           '<button onclick="gcEditName(event,\''+g.id+'\',\''+g.name+'\')">✏️ تغيير الاسم</button>'+
           '<button onclick="gcEditPass(event,\''+g.id+'\',\''+g.memberPass+'\')">🔑 تغيير كلمة السر</button>'+
+          '<button onclick="gcArchive(event,\''+g.id+'\','+JSON.stringify(g.archived||false)+')">📦 '+(g.archived?'إلغاء الأرشفة':'أرشفة المجموعة')+'</button>'+
           '<button class="gc-del-opt" onclick="gcDelete(event,\''+g.id+'\')">🗑 حذف المجموعة</button>'+
           '</div>'
         : '';
@@ -756,6 +762,22 @@ window.gcEditName = async (e, gid, cur) => {
   await setDoc(doc(db,"groups",gid),{name:n.trim()},{merge:true});
   toast("✓ تم تغيير الاسم");
 };
+window.gcArchive = async (e, gid, isArchived) => {
+  e.stopPropagation();
+  document.querySelectorAll(".gc-dropdown.on").forEach(d=>d.classList.remove("on"));
+  const action = isArchived ? "إلغاء أرشفة" : "أرشفة";
+  if (!confirm(action + " هذه المجموعة؟")) return;
+  await setDoc(doc(db,"groups",gid),{archived:!isArchived},{merge:true});
+  toast(isArchived ? "✓ تم إلغاء الأرشفة" : "✓ تم أرشفة المجموعة");
+};
+
+let showArchived = false;
+window.toggleArchive = () => {
+  showArchived = !showArchived;
+  document.getElementById("groups-list-archived").style.display = showArchived ? "" : "none";
+  document.getElementById("archive-btn-text").textContent = showArchived ? "إخفاء المجموعات المؤرشفة" : "عرض المجموعات المؤرشفة";
+};
+
 window.gcEditPass = async (e, gid, cur) => {
   e.stopPropagation();
   document.querySelectorAll(".gc-dropdown.on").forEach(d=>d.classList.remove("on"));
@@ -1015,7 +1037,8 @@ function renderExpenses(){
     const manualInfo = e.useManual && e.manualSplits ? "<br>"+e.manualSplits.map(ms=>'<span class="etag">'+ms.name+': '+ms.amount.toFixed(2)+' ر</span>').join("") : "";
     const del=isAdmin?'<button class="delbtn" data-id="'+e.id+'">🗑</button>':"";
     const editBtn=isAdmin?'<button class="edit-btn" data-id="'+e.id+'">✏️ تعديل</button>':"";
-    return '<div class="ei"><div style="flex:1;min-width:0"><div class="en">'+e.name+'</div><div class="em">💳 '+e.payer+' · 👥 '+e.split.join("، ")+(e.date?" · "+e.date:"")+dl+manualInfo+'</div></div><div style="display:flex;align-items:center;gap:5px;flex-shrink:0"><span class="ea">'+e.amount.toFixed(2)+' ر</span>'+editBtn+del+'</div></div>';
+    const waBtn='<button class="wa-btn" data-id="'+e.id+'">📤</button>';
+    return '<div class="ei"><div style="flex:1;min-width:0"><div class="en">'+e.name+'</div><div class="em">💳 '+e.payer+' · 👥 '+e.split.join("، ")+(e.date?" · "+e.date:"")+dl+manualInfo+'</div></div><div style="display:flex;align-items:center;gap:5px;flex-shrink:0"><span class="ea">'+e.amount.toFixed(2)+' ر</span>'+editBtn+del+waBtn+'</div></div>';
   }).join("");
   if(isAdmin) {
     el.querySelectorAll(".delbtn").forEach(btn=>{
@@ -1025,6 +1048,18 @@ function renderExpenses(){
       btn.onclick=()=>window.openEditModal(btn.dataset.id);
     });
   }
+  el.querySelectorAll(".wa-btn").forEach(btn=>{
+    btn.onclick=()=>{
+      const e=expenses.find(x=>x.id===btn.dataset.id);
+      if(!e)return;
+      const msg = "*فاصل* — مجموعة _"+currentGroup.name+"_\n"+
+        "--------------------------------\n"+
+        "*"+e.name+"* — "+e.amount.toFixed(2)+" ريال\n"+
+        "دفع: "+e.payer+"\n"+
+        "على: "+e.split.join("، ")+(e.date?"\nالتاريخ: "+e.date:"");
+      window.open("https://wa.me/?text="+encodeURIComponent(msg),"_blank");
+    };
+  });
 }
 
 // ── BALANCES ──
@@ -1357,6 +1392,16 @@ function exportPDF() {
     .td-amount{font-weight:700;color:#D4A843}
 
     .footer{text-align:center;padding:24px;color:#555250;font-size:11px;border-top:1px solid rgba(255,255,255,.07);margin-top:32px}
+
+/* Archive */
+.archive-badge{background:rgba(255,255,255,.05);color:var(--tx3);border:1px solid var(--bd);border-radius:8px;padding:2px 8px;font-size:10px;font-weight:600}
+.archived-card{opacity:.6}
+.archive-toggle{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--tx2);cursor:pointer;margin-bottom:.75rem;background:none;border:none;font-family:'Tajawal',sans-serif;padding:0}
+.archive-toggle:hover{color:var(--tx)}
+
+/* Whatsapp */
+.wa-btn{background:#25D366;color:#fff;border:none;border-radius:var(--rss);padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Tajawal',sans-serif;display:flex;align-items:center;gap:4px;white-space:nowrap}
+.wa-btn:active{opacity:.8}
 
     @media print{
       body{background:#fff;color:#1a1a18}
