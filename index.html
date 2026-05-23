@@ -1280,6 +1280,8 @@ function renderReport() {
 
   people.forEach(p => {
     const paid = expenses.filter(e=>e.payer===p).reduce((s,e)=>s+e.amount,0);
+    const net = bal[p] || 0;
+    // consumed = ما دفعه الشخص فعلاً من مصاريف المجموعة
     const consumed = (() => {
       let c = 0;
       expenses.forEach(e => {
@@ -1290,21 +1292,64 @@ function renderReport() {
           const deds = e.deductions||[];
           const td = deds.reduce((s,d)=>s+d.amount,0);
           const sh = e.amount - td;
-          if ((e.split||[]).includes(p)) c += sh/(e.split||[]).length;
-          deds.forEach(d=>{if((d.onPeople||[]).includes(p))c+=d.amount/(d.onPeople||[]).length});
+          if ((e.split||[]).includes(p)) c += sh/((e.split||[]).length||1);
+          deds.forEach(d=>{if((d.onPeople||[]).includes(p))c+=d.amount/((d.onPeople||[]).length||1)});
         }
       });
       return c;
     })();
-    const net = bal[p] || 0;
     const netCls = net > 0.01 ? "report-net-pos" : net < -0.01 ? "report-net-neg" : "report-net-zer";
     const netTxt = net > 0.01 ? "له "+net.toFixed(2)+" ر" : net < -0.01 ? "عليه "+Math.abs(net).toFixed(2)+" ر" : "متساوي";
 
+    const paysSent = payments.filter(pay=>pay.from===p&&pay.type!=="dep"&&pay.to!=="__deposit__").reduce((s,pay)=>s+pay.amount,0);
+    const paysReceived = payments.filter(pay=>pay.to===p).reduce((s,pay)=>s+pay.amount,0);
+    const deposits = payments.filter(pay=>pay.from===p&&(pay.type==="dep"||pay.to==="__deposit__")).reduce((s,pay)=>s+pay.amount,0);
+    const totalPaid = paid + deposits;
+
     html += '<div class="report-person-card">';
-    html += '<div class="report-person-name">'+p+'</div>';
-    html += '<div class="report-row"><span>💳 إجمالي ما دفع</span><span>'+paid.toFixed(2)+' ر</span></div>';
-    html += '<div class="report-row"><span>🍽️ إجمالي ما استهلك</span><span>'+consumed.toFixed(2)+' ر</span></div>';
-    html += '<div class="report-total-row"><span>📊 الصافي</span><span class="'+netCls+'">'+netTxt+'</span></div>';
+    html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">';
+    html +=   '<div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold2));display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#0D0D0D;flex-shrink:0">'+p.charAt(0)+'</div>';
+    html +=   '<div class="report-person-name" style="margin:0">'+p+'</div>';
+    html +=   '<div style="margin-right:auto;padding:4px 12px;border-radius:10px;font-size:13px;font-weight:700;'+
+              (net>0.01?'background:var(--greenbg);color:var(--greentx)':net<-0.01?'background:var(--redbg);color:var(--redtx)':'background:var(--sur2);color:var(--tx3)')+
+              '">'+netTxt+'</div>';
+    html += '</div>';
+
+    // استهلك
+    html += '<div style="background:var(--sur2);border-radius:var(--rs);padding:10px 12px;margin-bottom:8px">';
+    html += '<div style="font-size:10px;color:var(--tx3);font-weight:700;letter-spacing:.06em;margin-bottom:6px">ما استهلكه من المجموعة</div>';
+    html += '<div style="font-size:20px;font-weight:800;color:var(--tx)">'+consumed.toFixed(2)+' <span style="font-size:13px;color:var(--tx2)">ريال</span></div>';
+    html += '</div>';
+
+    // دفع ليه
+    if (totalPaid > 0 || paysSent > 0 || paysReceived > 0) {
+      html += '<div style="display:flex;flex-direction:column;gap:6px">';
+      if (paid > 0) {
+        html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--greenbg);border-radius:var(--rss)">';
+        html += '<span style="font-size:12px;color:var(--greentx)">✓ دفع فواتير للمجموعة</span>';
+        html += '<span style="font-size:14px;font-weight:700;color:var(--greentx)">+'+paid.toFixed(2)+' ر</span>';
+        html += '</div>';
+      }
+      if (deposits > 0) {
+        html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--greenbg);border-radius:var(--rss)">';
+        html += '<span style="font-size:12px;color:var(--greentx)">🏦 إيداع في المجموعة</span>';
+        html += '<span style="font-size:14px;font-weight:700;color:var(--greentx)">+'+deposits.toFixed(2)+' ر</span>';
+        html += '</div>';
+      }
+      if (paysReceived > 0) {
+        html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--greenbg);border-radius:var(--rss)">';
+        html += '<span style="font-size:12px;color:var(--greentx)">💰 استلم تسوية</span>';
+        html += '<span style="font-size:14px;font-weight:700;color:var(--greentx)">+'+paysReceived.toFixed(2)+' ر</span>';
+        html += '</div>';
+      }
+      if (paysSent > 0) {
+        html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--redbg);border-radius:var(--rss)">';
+        html += '<span style="font-size:12px;color:var(--redtx)">💸 دفع تسوية لحد تاني</span>';
+        html += '<span style="font-size:14px;font-weight:700;color:var(--redtx)">-'+paysSent.toFixed(2)+' ر</span>';
+        html += '</div>';
+      }
+      html += '</div>';
+    }
     html += '</div>';
   });
   html += '</div>';
@@ -1456,6 +1501,7 @@ function exportPDF() {
 
   people.forEach(p => {
     const paid = expenses.filter(e=>e.payer===p).reduce((s,e)=>s+e.amount,0);
+    const net = bal[p]||0;
     const consumed = (() => {
       let c = 0;
       expenses.forEach(e => {
@@ -1466,20 +1512,18 @@ function exportPDF() {
           const deds = e.deductions||[];
           const td = deds.reduce((s,d)=>s+d.amount,0);
           const sh = e.amount - td;
-          if ((e.split||[]).includes(p)) c += sh/(e.split||[]).length;
-          deds.forEach(d=>{if((d.onPeople||[]).includes(p))c+=d.amount/(d.onPeople||[]).length});
+          if ((e.split||[]).includes(p)) c += sh/((e.split||[]).length||1);
+          deds.forEach(d=>{if((d.onPeople||[]).includes(p))c+=d.amount/((d.onPeople||[]).length||1)});
         }
       });
       return c;
     })();
-    const net = bal[p]||0;
     const netCls = net>0.01?"pos":net<-0.01?"neg":"zer";
     const netTxt = net>0.01?"له "+net.toFixed(2)+" ر":net<-0.01?"عليه "+Math.abs(net).toFixed(2)+" ر":"متساوي";
     const cardCls = net>0.01?"pos-card":net<-0.01?"neg-card":"";
     html += `<div class="person-card ${cardCls}">
       <div class="person-avatar">${p.charAt(0)}</div>
       <div class="person-name">${p}</div>
-      <div class="person-row"><span>💳 إجمالي ما دفع</span><span>${paid.toFixed(2)} ر</span></div>
       <div class="person-row"><span>🍽️ إجمالي ما استهلك</span><span>${consumed.toFixed(2)} ر</span></div>
       <div class="person-net"><label>📊 الصافي</label><span class="${netCls}">${netTxt}</span></div>
     </div>`;
