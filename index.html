@@ -722,6 +722,7 @@ function loadGroups() {
           '<div class="gc-dropdown" id="menu-'+g.id+'">'+
           '<button onclick="gcEditName(event,\''+g.id+'\',\''+g.name+'\')">✏️ تغيير الاسم</button>'+
           '<button onclick="gcEditPass(event,\''+g.id+'\',\''+g.memberPass+'\')">🔑 تغيير كلمة السر</button>'+
+          (!g.memberPass.includes('-') ? '<button onclick="gcRenewPass(event,\''+g.id+'\',\''+g.memberPass+'\')">🔄 تأمين كلمة السر</button>' : '')+
           '<button onclick="gcArchive(event,\''+g.id+'\','+JSON.stringify(g.archived||false)+')">📦 '+(g.archived?'إلغاء الأرشفة':'أرشفة المجموعة')+'</button>'+
           '<button class="gc-del-opt" onclick="gcDelete(event,\''+g.id+'\')">🗑 حذف المجموعة</button>'+
           '</div>'
@@ -762,6 +763,28 @@ window.gcEditName = async (e, gid, cur) => {
   await setDoc(doc(db,"groups",gid),{name:n.trim()},{merge:true});
   toast("✓ تم تغيير الاسم");
 };
+window.copyPass = (e, pass) => {
+  e.stopPropagation();
+  navigator.clipboard.writeText(pass).then(() => {
+    toast("✓ تم نسخ كلمة السر");
+  }).catch(() => {
+    prompt("انسخ كلمة السر:", pass);
+  });
+};
+
+window.gcRenewPass = async (e, gid, currentPass) => {
+  e.stopPropagation();
+  document.querySelectorAll(".gc-dropdown.on").forEach(d=>d.classList.remove("on"));
+  if (!confirm("هيتم تأمين كلمة السر بإضافة كود فريد عليها\nالأعضاء القدامى هيحتاجوا الكلمة الجديدة\n\nتكمل؟")) return;
+  const suffix = Date.now().toString(36).slice(-3) + Math.random().toString(36).slice(2,5);
+  const uniquePass = currentPass + "-" + suffix;
+  await setDoc(doc(db,"groups",gid),{memberPass:uniquePass},{merge:true});
+  setTimeout(() => {
+    alert("✓ تم تأمين كلمة السر!\n\nكلمة السر الجديدة:\n" + uniquePass + "\n\nابعتها للأعضاء 👍");
+  }, 300);
+  toast("✓ تم تأمين كلمة السر");
+};
+
 window.gcArchive = async (e, gid, isArchived) => {
   e.stopPropagation();
   document.querySelectorAll(".gc-dropdown.on").forEach(d=>d.classList.remove("on"));
@@ -781,9 +804,14 @@ window.toggleArchive = () => {
 window.gcEditPass = async (e, gid, cur) => {
   e.stopPropagation();
   document.querySelectorAll(".gc-dropdown.on").forEach(d=>d.classList.remove("on"));
-  const p = prompt("كلمة السر الجديدة للأعضاء:", cur);
-  if (!p || p.trim()===cur) return;
-  await setDoc(doc(db,"groups",gid),{memberPass:p.trim()},{merge:true});
+  const p = prompt("كلمة السر الجديدة للأعضاء (بدون الـ suffix — هنضيفه تلقائياً):", cur.split("-").slice(0,-1).join("-")||cur);
+  if (!p || !p.trim()) return;
+  const suffix = Date.now().toString(36).slice(-3) + Math.random().toString(36).slice(2,5);
+  const uniquePass = p.trim() + "-" + suffix;
+  await setDoc(doc(db,"groups",gid),{memberPass:uniquePass},{merge:true});
+  setTimeout(() => {
+    alert("✓ تم تغيير كلمة السر!\n\nكلمة السر الجديدة:\n" + uniquePass + "\n\nابعتها للأعضاء 👍");
+  }, 300);
   toast("✓ تم تغيير كلمة السر");
 };
 window.gcDelete = async (e, gid) => {
@@ -807,11 +835,18 @@ document.getElementById("ng-create-btn").onclick = async () => {
   const errEl = document.getElementById("ng-err");
   hideErr(errEl);
   if (!name||!pass) { showErr(errEl,"اكتب اسم المجموعة وكلمة السر"); return; }
+  // Generate unique suffix: timestamp base36 + 3 random chars
+  const suffix = Date.now().toString(36).slice(-3) + Math.random().toString(36).slice(2,5);
+  const uniquePass = pass + "-" + suffix;
   const id = Date.now().toString();
-  await setDoc(doc(db,"groups",id),{id,name,memberPass:pass,adminUid:currentUser.uid,members:[currentUser.uid],ts:Date.now()});
+  await setDoc(doc(db,"groups",id),{id,name,memberPass:uniquePass,adminUid:currentUser.uid,members:[currentUser.uid],ts:Date.now()});
   document.getElementById("ng-name").value = "";
   document.getElementById("ng-pass").value = "";
   document.getElementById("ng-modal").classList.remove("on");
+  // Show the unique password to admin
+  setTimeout(() => {
+    alert("✓ تم إنشاء المجموعة!\n\nكلمة سر الأعضاء:\n" + uniquePass + "\n\nابعتها للأعضاء عشان يقدروا يدخلوا 👍");
+  }, 300);
   toast("✓ تم إنشاء المجموعة");
 };
 
