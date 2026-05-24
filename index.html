@@ -711,7 +711,14 @@ function loadGroups() {
       let summary = "";
         if (isMine) {
           const gpass = (g.memberPass||'');
-          const waMsg = encodeURIComponent('انضم لمجموعتنا "' + g.name + '" على تطبيق فاصل:\n\nكلمة السر: *' + gpass + '*\n\nافتح الرابط وادخل كعضو واكتب اسمك');
+          const waMsg = encodeURIComponent([
+            'انضم لمجموعتنا "' + g.name + '" على تطبيق فاصل',
+            '',
+            'كلمة السر: ' + gpass + '   ⬅ (انسخها)',
+            'الرابط: https://abomagdy715-cmd.github.io/Fasil/',
+            '',
+            'افتح الرابط، اختار عضو، اكتب اسمك بالظبط زي ما عندنا'
+          ].join('\n'));
           summary += '<div onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:6px;margin-top:8px;padding:7px 10px;background:var(--gold4);border-radius:var(--rss);border:1px solid rgba(212,168,67,.2)">';
           summary += '<span style="font-size:11px;color:var(--tx2)">&#128273; كلمة السر:</span>';
           summary += '<span style="font-size:12px;font-weight:700;color:var(--gold);flex:1">' + gpass + '</span>';
