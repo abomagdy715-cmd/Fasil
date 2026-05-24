@@ -709,7 +709,16 @@ function loadGroups() {
       const debtors = Object.entries(bal).filter(([,b])=>b<-0.01).map(([n,b])=>n+": "+Math.abs(b).toFixed(0)+" ر").join(" · ");
       const allSettled = ppl.length>0 && Object.values(bal).every(b=>Math.abs(b)<0.01);
       let summary = "";
-      if (total > 0) {
+        if (isMine) {
+          const gpass = (g.memberPass||'');
+          const waMsg = encodeURIComponent('انضم لمجموعتنا "' + g.name + '" على تطبيق فاصل:\n\nكلمة السر: *' + gpass + '*\n\nافتح الرابط وادخل كعضو واكتب اسمك');
+          summary += '<div onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:6px;margin-top:8px;padding:7px 10px;background:var(--gold4);border-radius:var(--rss);border:1px solid rgba(212,168,67,.2)">';
+          summary += '<span style="font-size:11px;color:var(--tx2)">&#128273; كلمة السر:</span>';
+          summary += '<span style="font-size:12px;font-weight:700;color:var(--gold);flex:1">' + gpass + '</span>';
+          summary += '<a href="https://wa.me/?text=' + waMsg + '" target="_blank" onclick="event.stopPropagation()" style="background:#25D366;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;font-family:Tajawal,sans-serif;font-weight:600;text-decoration:none;white-space:nowrap;flex-shrink:0">&#128279; شير</a>';
+          summary += '</div>';
+        }
+        if (total > 0) {
         summary += '<div class="gc-summary">';
         summary += '<div class="gc-row"><span class="gc-lbl">💰 الإجمالي</span><span class="gc-val">'+total.toFixed(2)+' ر</span></div>';
         if (lastExp) summary += '<div class="gc-row"><span class="gc-lbl">📋 آخر مصروف</span><span class="gc-val">'+lastExp.name+'</span></div>';
@@ -775,14 +784,16 @@ window.copyPass = (e, pass) => {
 window.gcRenewPass = async (e, gid, currentPass) => {
   e.stopPropagation();
   document.querySelectorAll(".gc-dropdown.on").forEach(d=>d.classList.remove("on"));
-  if (!confirm("هيتم تأمين كلمة السر بإضافة كود فريد عليها\nالأعضاء القدامى هيحتاجوا الكلمة الجديدة\n\nتكمل؟")) return;
-  const suffix = Date.now().toString(36).slice(-3) + Math.random().toString(36).slice(2,5);
-  const uniquePass = currentPass + "-" + suffix;
-  await setDoc(doc(db,"groups",gid),{memberPass:uniquePass},{merge:true});
-  setTimeout(() => {
-    alert("✓ تم تأمين كلمة السر!\n\nكلمة السر الجديدة:\n" + uniquePass + "\n\nابعتها للأعضاء 👍");
-  }, 300);
-  toast("✓ تم تأمين كلمة السر");
+  const newPass = prompt("اكتب كلمة سر جديدة فريدة:", "");
+  if (!newPass || !newPass.trim()) return;
+  const q = query(collection(db,"groups"), where("memberPass","==",newPass.trim()));
+  const existing = await getDocs(q);
+  if (!existing.empty) {
+    alert("كلمة السر دي موجودة بالفعل — اختار كلمة تانية");
+    return;
+  }
+  await setDoc(doc(db,"groups",gid),{memberPass:newPass.trim()},{merge:true});
+  toast("✓ تم تغيير كلمة السر");
 };
 
 window.gcArchive = async (e, gid, isArchived) => {
@@ -804,14 +815,17 @@ window.toggleArchive = () => {
 window.gcEditPass = async (e, gid, cur) => {
   e.stopPropagation();
   document.querySelectorAll(".gc-dropdown.on").forEach(d=>d.classList.remove("on"));
-  const p = prompt("كلمة السر الجديدة للأعضاء (بدون الـ suffix — هنضيفه تلقائياً):", cur.split("-").slice(0,-1).join("-")||cur);
-  if (!p || !p.trim()) return;
-  const suffix = Date.now().toString(36).slice(-3) + Math.random().toString(36).slice(2,5);
-  const uniquePass = p.trim() + "-" + suffix;
-  await setDoc(doc(db,"groups",gid),{memberPass:uniquePass},{merge:true});
-  setTimeout(() => {
-    alert("✓ تم تغيير كلمة السر!\n\nكلمة السر الجديدة:\n" + uniquePass + "\n\nابعتها للأعضاء 👍");
-  }, 300);
+  const p = prompt("كلمة السر الجديدة للأعضاء:", cur);
+  if (!p || !p.trim() || p.trim()===cur) return;
+  const newPass = p.trim();
+  // تحقق إن الكلمة مش موجودة عند حد تاني
+  const q = query(collection(db,"groups"), where("memberPass","==",newPass));
+  const existing = await getDocs(q);
+  if (!existing.empty) {
+    alert("كلمة السر دي موجودة بالفعل عند مجموعة تانية — اختار كلمة تانية");
+    return;
+  }
+  await setDoc(doc(db,"groups",gid),{memberPass:newPass},{merge:true});
   toast("✓ تم تغيير كلمة السر");
 };
 window.gcDelete = async (e, gid) => {
@@ -835,18 +849,18 @@ document.getElementById("ng-create-btn").onclick = async () => {
   const errEl = document.getElementById("ng-err");
   hideErr(errEl);
   if (!name||!pass) { showErr(errEl,"اكتب اسم المجموعة وكلمة السر"); return; }
-  // Generate unique suffix: timestamp base36 + 3 random chars
-  const suffix = Date.now().toString(36).slice(-3) + Math.random().toString(36).slice(2,5);
-  const uniquePass = pass + "-" + suffix;
+  // تحقق إن الكلمة مش موجودة عند حد تاني
+  const q = query(collection(db,"groups"), where("memberPass","==",pass));
+  const existing = await getDocs(q);
+  if (!existing.empty) {
+    showErr(errEl,"كلمة السر دي موجودة بالفعل عند مجموعة تانية — اختار كلمة تانية");
+    return;
+  }
   const id = Date.now().toString();
-  await setDoc(doc(db,"groups",id),{id,name,memberPass:uniquePass,adminUid:currentUser.uid,members:[currentUser.uid],ts:Date.now()});
+  await setDoc(doc(db,"groups",id),{id,name,memberPass:pass,adminUid:currentUser.uid,members:[currentUser.uid],ts:Date.now()});
   document.getElementById("ng-name").value = "";
   document.getElementById("ng-pass").value = "";
   document.getElementById("ng-modal").classList.remove("on");
-  // Show the unique password to admin
-  setTimeout(() => {
-    alert("✓ تم إنشاء المجموعة!\n\nكلمة سر الأعضاء:\n" + uniquePass + "\n\nابعتها للأعضاء عشان يقدروا يدخلوا 👍");
-  }, 300);
   toast("✓ تم إنشاء المجموعة");
 };
 
